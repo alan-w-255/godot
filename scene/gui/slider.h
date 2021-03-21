@@ -41,6 +41,7 @@ class Slider : public Range {
 		int pos;
 		float uvalue;
 		bool active;
+                Vector2 grab_size;
 	} grab;
 
 	int ticks;
@@ -73,6 +74,9 @@ public:
 
 	void set_scrollable(bool p_scrollable);
 	bool is_scrollable() const;
+
+	void set_grab_size(const Vector2 &p_size);
+	Vector2 get_grab_size() const;
 
 	Slider(Orientation p_orientation = VERTICAL);
 };

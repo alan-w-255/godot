@@ -60,8 +60,8 @@ void Slider::_gui_input(Ref<InputEvent> p_event) {
 				Ref<Texture> grabber = get_icon(mouse_inside || has_focus() ? "grabber_highlight" : "grabber");
 				grab.pos = orientation == VERTICAL ? mb->get_position().y : mb->get_position().x;
 
-				double grab_width = (double)grabber->get_size().width;
-				double grab_height = (double)grabber->get_size().height;
+				double grab_width = (double)grab.grab_size.x;
+				double grab_height = (double)grab.grab_size.y;
 				double max = orientation == VERTICAL ? get_size().height - grab_height : get_size().width - grab_width;
 				if (orientation == VERTICAL)
 					set_as_ratio(1 - (((double)grab.pos - (grab_height / 2.0)) / max));
@@ -93,7 +93,7 @@ void Slider::_gui_input(Ref<InputEvent> p_event) {
 			float motion = (orientation == VERTICAL ? mm->get_position().y : mm->get_position().x) - grab.pos;
 			if (orientation == VERTICAL)
 				motion = -motion;
-			float areasize = orientation == VERTICAL ? size.height - grabber->get_size().height : size.width - grabber->get_size().width;
+			float areasize = orientation == VERTICAL ? size.height - grab.grab_size.y : size.width - grab.grab_size.x;
 			if (areasize <= 0)
 				return;
 			float umotion = motion / float(areasize);
@@ -177,36 +177,36 @@ void Slider::_notification(int p_what) {
 			if (orientation == VERTICAL) {
 
 				int widget_width = style->get_minimum_size().width + style->get_center_size().width;
-				float areasize = size.height - grabber->get_size().height;
+				float areasize = size.height - grab.grab_size.y;
 				style->draw(ci, Rect2i(Point2i(size.width / 2 - widget_width / 2, 0), Size2i(widget_width, size.height)));
-				grabber_area->draw(ci, Rect2i(Point2i((size.width - widget_width) / 2, size.height - areasize * ratio - grabber->get_size().height / 2), Size2i(widget_width, areasize * ratio + grabber->get_size().width / 2)));
+				grabber_area->draw(ci, Rect2i(Point2i((size.width - widget_width) / 2, size.height - areasize * ratio - grab.grab_size.y / 2), Size2i(widget_width, areasize * ratio + grab.grab_size.y / 2)));
 
 				if (ticks > 1) {
-					int grabber_offset = (grabber->get_size().height / 2 - tick->get_height() / 2);
+					int grabber_offset = (grab.grab_size.y / 2 - tick->get_height() / 2);
 					for (int i = 0; i < ticks; i++) {
 						if (!ticks_on_borders && (i == 0 || i + 1 == ticks)) continue;
 						int ofs = (i * areasize / (ticks - 1)) + grabber_offset;
 						tick->draw(ci, Point2i((size.width - widget_width) / 2, ofs));
 					}
 				}
-				grabber->draw(ci, Point2i(size.width / 2 - grabber->get_size().width / 2, size.height - ratio * areasize - grabber->get_size().height));
+				grabber->draw(ci, Point2i(size.width / 2 - grabber->get_size().width / 2, size.height - ratio * areasize - (grabber->get_size().height + grab.grab_size.y) / 2));
 			} else {
 
 				int widget_height = style->get_minimum_size().height + style->get_center_size().height;
-				float areasize = size.width - grabber->get_size().width;
+				float areasize = size.width - grab.grab_size.x;
 
 				style->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(size.width, widget_height)));
-				grabber_area->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(areasize * ratio + grabber->get_size().width / 2, widget_height)));
+				grabber_area->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(areasize * ratio + grab.grab_size.x / 2, widget_height)));
 
 				if (ticks > 1) {
-					int grabber_offset = (grabber->get_size().width / 2 - tick->get_width() / 2);
+					int grabber_offset = (grab.grab_size.x / 2 - tick->get_width() / 2);
 					for (int i = 0; i < ticks; i++) {
 						if ((!ticks_on_borders) && ((i == 0) || ((i + 1) == ticks))) continue;
 						int ofs = (i * areasize / (ticks - 1)) + grabber_offset;
 						tick->draw(ci, Point2i(ofs, (size.height - widget_height) / 2));
 					}
 				}
-				grabber->draw(ci, Point2i(ratio * areasize, size.height / 2 - grabber->get_size().height / 2));
+				grabber->draw(ci, Point2i(ratio * areasize - (grabber->get_size().width - grab.grab_size.x) / 2, size.height / 2 - grabber->get_size().height / 2));
 			}
 
 		} break;
@@ -226,6 +226,12 @@ float Slider::get_custom_step() const {
 void Slider::set_ticks(int p_count) {
 
 	ticks = p_count;
+	update();
+}
+
+void Slider::set_grab_size(const Vector2 &p_size) {
+
+        grab.grab_size = p_size;
 	update();
 }
 
@@ -264,6 +270,11 @@ bool Slider::is_scrollable() const {
 	return scrollable;
 }
 
+Vector2 Slider::get_grab_size() const {
+
+	return grab.grab_size;
+}
+
 void Slider::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_gui_input"), &Slider::_gui_input);
@@ -278,16 +289,21 @@ void Slider::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_scrollable", "scrollable"), &Slider::set_scrollable);
 	ClassDB::bind_method(D_METHOD("is_scrollable"), &Slider::is_scrollable);
 
+	ClassDB::bind_method(D_METHOD("set_grab_size", "size"), &Slider::set_grab_size);
+	ClassDB::bind_method(D_METHOD("get_grab_size"), &Slider::get_grab_size);
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editable"), "set_editable", "is_editable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scrollable"), "set_scrollable", "is_scrollable");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "tick_count", PROPERTY_HINT_RANGE, "0,4096,1"), "set_ticks", "get_ticks");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "ticks_on_borders"), "set_ticks_on_borders", "get_ticks_on_borders");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "grab_size"), "set_grab_size", "get_grab_size");
 }
 
 Slider::Slider(Orientation p_orientation) {
 	orientation = p_orientation;
 	mouse_inside = false;
 	grab.active = false;
+        grab.grab_size = Vector2(0, 0);
 	ticks = 0;
 	ticks_on_borders = false;
 	custom_step = -1;
